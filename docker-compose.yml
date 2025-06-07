@@ -1,0 +1,37 @@
+version: '3.5'
+
+services:
+    app:
+        build: ./docker/images/php81
+        volumes:
+            - ./application:/var/www/html
+        ports:
+            - "8083:8000"
+        links:
+            - postgresql
+            - supervisor
+        working_dir: /var/www/html
+        restart: always
+    postgresql:
+        image: postgres:14.1-alpine
+        ports:
+            - "5410:5432"
+        environment:
+            POSTGRES_USER: root
+            POSTGRES_PASSWORD: pQLkmOk1ssgOBox
+            POSTGRES_DB: calc
+        volumes:
+            - ./docker/images/postgres/files/postgresql.conf:/etc/postgresql.conf
+        command: [ "postgres", "-c", "config_file=/etc/postgresql.conf" ]
+        restart: always
+    supervisor:
+        build: ./docker/images/supervisor
+        working_dir: /var/www/html
+        restart: unless-stopped
+        volumes:
+            - ./application:/var/www/html
+            - ./docker/images/supervisor/files:/etc/supervisor/conf.d/
+        ports:
+            - "8002:8008"
+
+
