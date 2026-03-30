@@ -42,8 +42,8 @@ RUN docker-php-ext-install intl opcache \
 
 # fix work iconv library with alphine
 RUN apk add --no-cache --repository http://dl-cdn.alpinelinux.org/alpine/edge/community/ --allow-untrusted gnu-libiconv
-ENV LD_PRELOAD /usr/lib/preloadable_libiconv.so php
-ENV NODE_PATH "/home/www-data/.npm-global/lib/node_modules"
+ENV LD_PRELOAD=/usr/lib/preloadable_libiconv.so
+ENV NODE_PATH=/home/www-data/.npm-global/lib/node_modules
 
 RUN apk add --no-cache nodejs npm && \
     mkdir "/home/www-data/.npm-global/" && \
@@ -56,10 +56,10 @@ RUN pecl install -o -f redis \
 &&  rm -rf /tmp/pear \
 &&  docker-php-ext-enable redis
 
-ENV SWOOLE_MAX_REQUESTS "100"
-ENV SWOOLE_TASK_WORKERS "1"
-ENV SWOOLE_WATCH $true
-ENV SWOOLE_WORKERS "10"
+ENV SWOOLE_MAX_REQUESTS=100
+ENV SWOOLE_TASK_WORKERS=1
+ENV SWOOLE_WATCH=true
+ENV SWOOLE_WORKERS=10
 
 RUN chown -R www-data:www-data /var/www/html/
 
