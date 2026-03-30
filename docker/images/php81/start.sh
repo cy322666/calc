@@ -1,18 +1,17 @@
-#!/bin/bash
+#!/bin/sh
+set -eu
 
-chmod -R 777 storage
-chmod -R 777 vendor
+cd /var/www/html
 
-composer install
+# Runtime-only startup. Do not install packages or run installers here.
+chmod -R 777 storage || true
+chmod -R 777 vendor || true
 
-#php artisan key:generate
-
-composer require laravel/octane --with-all-dependencies
-
-php artisan telescope:install
-
-php artisan horizon:install
-
-php artisan octane:install --server="swoole"
-
-php artisan octane:start --server="swoole" --host="0.0.0.0" --workers=10 --task-workers=1 --max-requests=100 --watch;
+# Start Octane without file watcher (watch mode is for local dev only).
+exec php artisan octane:start \
+  --server=swoole \
+  --host=0.0.0.0 \
+  --port=8000 \
+  --workers="${SWOOLE_WORKERS:-10}" \
+  --task-workers="${SWOOLE_TASK_WORKERS:-1}" \
+  --max-requests="${SWOOLE_MAX_REQUESTS:-100}"
