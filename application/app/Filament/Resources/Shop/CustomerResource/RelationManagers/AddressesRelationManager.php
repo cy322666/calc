@@ -27,10 +27,10 @@ class AddressesRelationManager extends RelationManager
 
                 Forms\Components\TextInput::make('state'),
 
-//                Forms\Components\Select::make('country')
-//                    ->searchable()
-//                    ->getSearchResultsUsing(fn (string $query) => Country::where('name', 'like', "%{$query}%")->pluck('name', 'id'))
-//                    ->getOptionLabelUsing(fn ($value): ?string => Country::firstWhere('id', $value)?->getAttribute('name')),
+                Forms\Components\Select::make('country')
+                    ->searchable()
+                    ->getSearchResultsUsing(fn (string $query) => Country::where('name', 'like', "%{$query}%")->pluck('name', 'id'))
+                    ->getOptionLabelUsing(fn ($value): ?string => Country::firstWhere('id', $value)?->getAttribute('name')),
             ]);
     }
 
@@ -44,23 +44,23 @@ class AddressesRelationManager extends RelationManager
 
                 Tables\Columns\TextColumn::make('city'),
 
-//                Tables\Columns\TextColumn::make('country')
-//                    ->formatStateUsing(fn ($state): ?string => Country::find($state)?->name ?? null),
+                Tables\Columns\TextColumn::make('country')
+                    ->formatStateUsing(fn ($state): ?string => Country::find($state)?->name ?? null),
             ])
             ->filters([
                 //
             ])
             ->headerActions([
-//                Tables\Actions\AttachAction::make(),
+                Tables\Actions\AttachAction::make(),
                 Tables\Actions\CreateAction::make(),
             ])
             ->actions([
                 Tables\Actions\EditAction::make(),
-//                Tables\Actions\DetachAction::make(),
+                Tables\Actions\DetachAction::make(),
                 Tables\Actions\DeleteAction::make(),
             ])
             ->groupedBulkActions([
-//                Tables\Actions\DetachBulkAction::make(),
+                Tables\Actions\DetachBulkAction::make(),
                 Tables\Actions\DeleteBulkAction::make(),
             ]);
     }

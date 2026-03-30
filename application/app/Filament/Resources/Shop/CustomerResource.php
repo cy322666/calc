@@ -23,11 +23,13 @@ class CustomerResource extends Resource
 
     protected static ?string $recordTitleAttribute = 'name';
 
-//    protected static ?string $navigationGroup = 'Shop';
+    protected static ?string $navigationGroup = 'Shop';
 
     protected static ?string $navigationIcon = 'heroicon-o-user-group';
 
     protected static ?int $navigationSort = 2;
+
+    protected static bool $shouldRegisterNavigation = true;
 
     public static function form(Form $form): Form
     {
@@ -49,8 +51,8 @@ class CustomerResource extends Resource
                         Forms\Components\TextInput::make('phone')
                             ->maxLength(255),
 
-//                        Forms\Components\DatePicker::make('birthday')
-//                            ->maxDate('today'),
+                        Forms\Components\DatePicker::make('birthday')
+                            ->maxDate('today'),
                     ])
                     ->columns(2)
                     ->columnSpan(['lg' => fn (?Customer $record) => $record === null ? 3 : 2]),
@@ -82,8 +84,8 @@ class CustomerResource extends Resource
                     ->label('Email address')
                     ->searchable(isIndividual: true, isGlobal: false)
                     ->sortable(),
-//                Tables\Columns\TextColumn::make('country')
-//                    ->getStateUsing(fn ($record): ?string => Country::find($record->addresses->first()?->country)?->name ?? null),
+                Tables\Columns\TextColumn::make('country')
+                    ->getStateUsing(fn ($record): ?string => Country::find($record->addresses->first()?->country)?->name ?? null),
                 Tables\Columns\TextColumn::make('phone')
                     ->searchable()
                     ->sortable(),

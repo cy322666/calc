@@ -29,6 +29,7 @@ class LinkResource extends Resource
 
     protected static ?int $navigationSort = 3;
 
+    protected static bool $shouldRegisterNavigation = true;
     public static function form(Form $form): Form
     {
         return $form

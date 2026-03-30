@@ -27,7 +27,7 @@ class Order extends Model
         'number',
         'total_price',
         'status',
-//        'currency',
+        'currency',
         'shipping_price',
         'shipping_method',
         'notes',

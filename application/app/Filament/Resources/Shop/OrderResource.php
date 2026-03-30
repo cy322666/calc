@@ -38,6 +38,8 @@ class OrderResource extends Resource
 
     protected static ?int $navigationSort = 1;
 
+    protected static bool $shouldRegisterNavigation = true;
+
     public static function form(Form $form): Form
     {
         return $form
@@ -84,23 +86,20 @@ class OrderResource extends Resource
         return $table
             ->columns([
                 Tables\Columns\TextColumn::make('number')
-                    ->label('№ Заказа')
                     ->searchable()
                     ->sortable(),
                 Tables\Columns\TextColumn::make('customer.name')
-                    ->label('Заказчик')
                     ->searchable()
                     ->sortable()
                     ->toggleable(),
                 Tables\Columns\TextColumn::make('status')
                     ->badge(),
-//                Tables\Columns\TextColumn::make('currency')
-//                    ->getStateUsing(fn ($record): ?string => Currency::find($record->currency)?->name ?? null)
-//                    ->searchable()
-//                    ->sortable()
-//                    ->toggleable(),
+                Tables\Columns\TextColumn::make('currency')
+                    ->getStateUsing(fn ($record): ?string => Currency::find($record->currency)?->name ?? null)
+                    ->searchable()
+                    ->sortable()
+                    ->toggleable(),
                 Tables\Columns\TextColumn::make('total_price')
-                    ->label('Общая стоимость')
                     ->searchable()
                     ->sortable()
                     ->summarize([
@@ -108,7 +107,7 @@ class OrderResource extends Resource
                             ->money(),
                     ]),
                 Tables\Columns\TextColumn::make('shipping_price')
-                    ->label('Стоимость доставки')
+                    ->label('Shipping cost')
                     ->searchable()
                     ->sortable()
                     ->toggleable()
@@ -156,7 +155,6 @@ class OrderResource extends Resource
             ])
             ->actions([
                 Tables\Actions\EditAction::make(),
-                Tables\Actions\ViewAction::make(),
             ])
             ->groupedBulkActions([
                 Tables\Actions\DeleteBulkAction::make()
@@ -263,14 +261,14 @@ class OrderResource extends Resource
                     Forms\Components\TextInput::make('phone')
                         ->maxLength(255),
 
-//                    Forms\Components\Select::make('gender')
-//                        ->placeholder('Select gender')
-//                        ->options([
-//                            'male' => 'Male',
-//                            'female' => 'Female',
-//                        ])
-//                        ->required()
-//                        ->native(false),
+                    Forms\Components\Select::make('gender')
+                        ->placeholder('Select gender')
+                        ->options([
+                            'male' => 'Male',
+                            'female' => 'Female',
+                        ])
+                        ->required()
+                        ->native(false),
                 ])
                 ->createOptionAction(function (Action $action) {
                     return $action
@@ -284,17 +282,17 @@ class OrderResource extends Resource
                 ->options(OrderStatus::class)
                 ->required(),
 
-//            Forms\Components\Select::make('currency')
-//                ->searchable()
-//                ->getSearchResultsUsing(fn (string $query) => Currency::where('name', 'like', "%{$query}%")->pluck('name', 'id'))
-//                ->getOptionLabelUsing(fn ($value): ?string => Currency::firstWhere('id', $value)?->getAttribute('name'))
-//                ->required(),
+            Forms\Components\Select::make('currency')
+                ->searchable()
+                ->getSearchResultsUsing(fn (string $query) => Currency::where('name', 'like', "%{$query}%")->pluck('name', 'id'))
+                ->getOptionLabelUsing(fn ($value): ?string => Currency::firstWhere('id', $value)?->getAttribute('name'))
+                ->required(),
 
             AddressForm::make('address')
                 ->columnSpan('full'),
 
-//            Forms\Components\MarkdownEditor::make('notes')
-//                ->columnSpan('full'),
+            Forms\Components\MarkdownEditor::make('notes')
+                ->columnSpan('full'),
         ];
     }
 

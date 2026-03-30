@@ -23,12 +23,9 @@ class ListOrders extends ListRecords
 
     protected function getHeaderWidgets(): array
     {
-        return [];
-//        return OrderResource::getWidgets();
+        return OrderResource::getWidgets();
     }
 
-    //TODO
-    //основные сюда
     public function getTabs(): array
     {
         return [

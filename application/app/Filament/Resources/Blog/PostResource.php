@@ -36,6 +36,8 @@ class PostResource extends Resource
 
     protected static SubNavigationPosition $subNavigationPosition = SubNavigationPosition::Top;
 
+    protected static bool $shouldRegisterNavigation = true;
+
     public static function form(Form $form): Form
     {
         return $form

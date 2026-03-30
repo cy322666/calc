@@ -20,6 +20,10 @@ class Category extends Model implements HasMedia
      */
     protected $table = 'shop_categories';
 
+    protected $fillable = [
+        'blind_system_id',
+    ];
+
     /**
      * @var array<string, string>
      */
