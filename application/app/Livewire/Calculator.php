@@ -2,270 +2,240 @@
 
 namespace App\Livewire;
 
+use App\Models\Calculator\BlindComponent;
 use App\Models\Calculator\BlindSystem;
-use App\Models\Calculator\Fabric;
-use App\Models\Shop\Category;
-use App\Models\Shop\Product;
-use App\Models\User;
 use App\Services\Calculator\CalculatorPricingService;
-use Filament\Actions\Action;
-use Filament\Actions\Concerns\InteractsWithActions;
-use Filament\Actions\Contracts\HasActions;
-use Filament\Forms\Components\Builder;
-use Filament\Forms\Components\DatePicker;
-use Filament\Forms\Components\Group;
-use Filament\Forms\Components\Placeholder;
-use Filament\Forms\Components\Section;
-use Filament\Forms\Components\Select;
-use Filament\Forms\Components\Tabs;
-use Filament\Forms\Components\Tabs\Tab;
-use Filament\Forms\Components\Textarea;
-use Filament\Forms\Components\TextInput;
-use Filament\Forms\Concerns\InteractsWithForms;
-use Filament\Forms\Contracts\HasForms;
-use Filament\Forms\Form;
-use Filament\Forms\Get;
-use Filament\Forms\Set;
-use Filament\Support\Contracts\TranslatableContentDriver;
-use Filament\Support\Enums\ActionSize;
-use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Collection;
 use Livewire\Component;
-use Livewire\Features\SupportFileUploads\TemporaryUploadedFile;
 
-class Calculator extends Component implements HasForms, HasActions
+class Calculator extends Component
 {
-    use InteractsWithForms;
-    use InteractsWithActions;
+    public array $data = [
+        'type_rolled_curtains' => '',
+        'rol_price_tier' => 'opt',
+        'calculation_date' => '',
+        'components_qty' => [],
+        'components_variant' => [],
+    ];
 
-    public ?array $data = [];
-    private bool $isRecalculating = false;
+    public array $systems = [];
+    public array $components = [];
+    private ?Collection $variantComponentsCache = null;
+
+    public float $myPrice = 0.0;
+    public float $retailPrice = 0.0;
+    public float $usdRate = 0.0;
+    public string $priceBreakdown = '';
+
+    public function mount(): void
+    {
+        $this->data['calculation_date'] = now()->toDateString();
+
+        $this->systems = BlindSystem::query()
+            ->where('category', 'roller')
+            ->orderBy('name')
+            ->get(['code', 'name'])
+            ->map(fn (BlindSystem $system) => [
+                'code' => (string) $system->code,
+                'name' => (string) $system->name,
+            ])
+            ->values()
+            ->toArray();
+
+        if (!empty($this->systems)) {
+            $this->data['type_rolled_curtains'] = (string) $this->systems[0]['code'];
+        }
+
+        $this->loadComponents((string) $this->data['type_rolled_curtains']);
+    }
+
+    public function updatedDataTypeRolledCurtains($systemCode): void
+    {
+        $this->loadComponents((string) $systemCode);
+        $this->resetTotals();
+    }
+
+    public function calculateAction(?array $payload = null): void
+    {
+        if (is_array($payload) && !empty($payload)) {
+            $this->data = array_replace_recursive($this->data, $payload);
+        }
+
+        $totals = app(CalculatorPricingService::class)->calculateTotals($this->data);
+
+        $this->myPrice = (float) ($totals['cost_total'] ?? 0);
+        $this->retailPrice = (float) ($totals['retail_total'] ?? 0);
+        $this->usdRate = (float) data_get($totals, 'debug.usd_rate', 0);
+        $this->priceBreakdown = $this->formatBreakdown(
+            $totals['breakdown'] ?? [],
+            $this->myPrice,
+            $this->retailPrice,
+            (string) data_get($totals, 'debug.calculation_date', $this->data['calculation_date']),
+            $this->usdRate
+        );
+    }
 
     public function render()
     {
         return view('livewire.calculator');
     }
 
-    public function calculateAction(): void
+    private function loadComponents(string $systemCode): void
     {
-        $this->recalculate();
-    }
+        $this->components = [];
+        $this->data['components_qty'] = [];
+        $this->data['components_variant'] = [];
 
-    private function result(Get $get): int
-    {
-        $temp = ($get('weight') + $get('height') + $get('width')) * $get('count');
-
-        if ($get('control_handle_count') !== null) {
-
-            return (int)$temp + (int)$get('control_handle_count') * 1000;
-        }
-
-        return $temp;
-    }
-
-    //https://filamentphp.com/docs/3.x/forms/advanced#field-updates
-
-    public function form(Form $form): Form
-    {
-        return $form
-            ->schema([
-                Tabs::make('Tabs')
-                    ->tabs([
-                        Tab::make('Рулонные шторы')
-                            ->schema([
-
-                                //тут тип штор (поиск по бд)
-                                Section::make()
-                                    ->schema(\App\Forms\RolledСurtains\Form::getForm()),
-
-                                Section::make()
-                                    ->schema(fn(Get $get): array => \App\Forms\RolledСurtains\Form::all($get))
-                            ]),
-
-                        Tab::make('Вертикальные жалюзи')
-                            ->schema([
-
-                                //Vertical blinds
-                                Section::make()
-                                    ->schema([
-                                        Select::make('type_vertical_blinds')
-                                            ->label('Тип')
-                                            ->options(
-                                               []
-                                            )
-                                            ->reactive(),
-                                    ]),
-
-                                Section::make()
-                                    ->schema(fn(Get $get): array => \App\Forms\VerticalBlinds\Form::all($get))
-
-
-                            ]),
-                        Tab::make('Горизонтальные жалюзи')
-                            ->schema([
-                                //Horizontal blinds
-
-                                Section::make()
-                                    ->schema([
-                                        Section::make()
-                                            ->schema(\App\Forms\HorizontalBlinds\Form::getForm()),
-                                    ]),
-
-                                Section::make()
-                                    ->schema(fn(Get $get): array => \App\Forms\HorizontalBlinds\Form::all($get))
-
-                            ]),
-                        Tab::make('Шторы')
-                            ->schema([
-                                // ...
-                            ]),
-                    ])
-                    ->columnSpan(['lg' => 2]),
-                Group::make()
-                    ->schema([
-                        Section::make('Стоимость')
-                            ->schema([
-                                TextInput::make('my_price')
-                                    ->label('Моя цена')
-                                    ->disabled(),
-//                                           ->content(fn (?User $record): string => $record ? $record->created_at->diffForHumans() : '-'),
-
-                                TextInput::make('price')
-                                    ->label('Розничная цена')
-                                    ->disabled(),
-                                Textarea::make('price_breakdown')
-                                    ->label('Разбивка')
-                                    ->rows(10)
-                                    ->disabled(),
-//                                           ->dehydrated()
-//                                           ->content(fn (?User $record): string => $record ? $record->created_at->diffForHumans() : '-'),
-                            ]),
-                    ])
-                    ->columnSpan(['lg' => 1]),
-
-//                MarkdownEditor::make('content'),
-                // ...
-
-                /*
-                 *    Select::make('status')
-            ->options([
-                'draft' => 'Draft',
-                'reviewing' => 'Reviewing',
-                'published' => 'Published',
-            ]),
-                 */
-            ])
-            ->columns(['lg' => 3])
-            //        ->model($this->post);
-            ->statePath('data');
-    }
-
-    private function recalculate(): void
-    {
-        if ($this->isRecalculating) {
+        if ($systemCode === '') {
             return;
         }
 
-        $this->isRecalculating = true;
+        $system = BlindSystem::query()
+            ->where('code', $systemCode)
+            ->with([
+                'components' => fn ($query) => $query->orderBy('blind_component_system.position'),
+                'components.variants',
+            ])
+            ->first();
 
-        try {
-            $state = array_replace_recursive($this->form->getState(), $this->data ?? []);
-            $fabricDetails = $this->calculateFabricDetails($state);
-            $state['fabric_price_total'] = $fabricDetails['total'];
-            $state['fabric_unit_price'] = $fabricDetails['unit_price'];
-            $state['fabric_area'] = $fabricDetails['area'];
-            $state['fabric_name'] = $fabricDetails['name'];
+        if (!$system) {
+            return;
+        }
 
-            $totals = app(CalculatorPricingService::class)->calculateTotals($state);
+        foreach ($system->components as $component) {
+            $variantsSource = $component->variants->isNotEmpty()
+                ? $component->variants
+                : $this->guessVariantsForComponent((string) $component->name);
 
-            $this->data['my_price'] = $totals['cost_total'];
-            $this->data['price'] = $totals['retail_total'];
-            $this->data['fabric_price_total'] = $fabricDetails['total'];
-            $this->data['price_breakdown'] = $this->formatBreakdown($totals['breakdown'] ?? [], $totals['cost_total'], $totals['retail_total']);
+            $variants = $variantsSource
+                ->map(fn ($variant) => [
+                    'id' => (int) $variant->id,
+                    'name' => (string) $variant->name,
+                ])
+                ->values()
+                ->toArray();
 
-            if (!empty($state['type_rolled_curtains']) && str_contains((string) $state['type_rolled_curtains'], 'bnt')) {
-                $this->data['rol_bnt_pipe_recommended'] = $this->recommendBntPipe($state);
-            } else {
-                $this->data['rol_bnt_pipe_recommended'] = null;
+            $this->components[] = [
+                'id' => (int) $component->id,
+                'name' => (string) $component->name,
+                'variants' => $variants,
+            ];
+
+            $this->data['components_qty'][(int) $component->id] = false;
+
+            if (count($variants) === 1) {
+                $this->data['components_variant'][(int) $component->id] = (int) $variants[0]['id'];
             }
-        } finally {
-            $this->isRecalculating = false;
         }
     }
 
-    private function calculateFabricDetails(array $state): array
+    private function guessVariantsForComponent(string $componentName): Collection
     {
-        $fabricId = $state['rol_fabric_id'] ?? null;
-        $width = (float) ($state['rol_width'] ?? 0);
-        $height = (float) ($state['rol_height'] ?? 0);
-
-        if (!$fabricId || $width <= 0 || $height <= 0) {
-            return [
-                'name' => null,
-                'area' => 0,
-                'unit_price' => 0,
-                'total' => 0,
-            ];
+        if ($this->variantComponentsCache === null) {
+            $this->variantComponentsCache = BlindComponent::query()
+                ->whereHas('variants')
+                ->with('variants')
+                ->get(['id', 'name']);
         }
 
-        $fabric = Fabric::query()->find($fabricId);
-        if (!$fabric) {
-            return [
-                'name' => null,
-                'area' => 0,
-                'unit_price' => 0,
-                'total' => 0,
-            ];
+        $targetTokens = $this->tokens($componentName);
+        if (empty($targetTokens)) {
+            return collect();
         }
 
-        $area = $width * $height / 1000000; // mm2 -> m2
-        $unitPrice = (float) $fabric->price_per_m2;
-        return [
-            'name' => (string) $fabric->name,
-            'area' => round($area, 4),
-            'unit_price' => round($unitPrice, 2),
-            'total' => round($area * $unitPrice, 2),
+        $best = null;
+        $bestScore = -INF;
+
+        foreach ($this->variantComponentsCache as $component) {
+            $candidateTokens = $this->tokens((string) $component->name);
+            $overlap = count(array_intersect($targetTokens, $candidateTokens));
+            if ($overlap < 2) {
+                continue;
+            }
+
+            $ratio = $overlap / max(1, count($targetTokens));
+            if ($ratio < 0.6) {
+                continue;
+            }
+
+            $score = ($ratio * 100)
+                + ($overlap * 10)
+                + min($component->variants->count(), 10);
+
+            if ($score > $bestScore) {
+                $bestScore = $score;
+                $best = $component;
+            }
+        }
+
+        return $best?->variants ?? collect();
+    }
+
+    private function tokens(string $value): array
+    {
+        $value = mb_strtolower($value);
+        $value = str_replace(['управления', 'управление'], 'упр', $value);
+        $value = str_replace(['×', 'x', 'х'], ' ', $value);
+        $value = preg_replace('/[^a-zа-я0-9]+/iu', ' ', $value) ?? '';
+        $parts = preg_split('/\s+/u', trim($value)) ?: [];
+
+        $stopWords = [
+            'для',
+            'под',
+            'или',
+            'комплект',
+            'комп',
+            'пара',
+            'мм',
+            'амг',
+            'ск',
+            'rus',
+            'универсальный',
+            'универсальная',
+            'универс',
+            'с',
         ];
+
+        $parts = array_filter($parts, function (string $token) use ($stopWords) {
+            if (mb_strlen($token) < 2 && !is_numeric($token)) {
+                return false;
+            }
+
+            return !in_array($token, $stopWords, true);
+        });
+
+        return array_values(array_unique($parts));
     }
 
-    private function recommendBntPipe(array $state): string
-    {
-        $fabricId = $state['rol_fabric_id'] ?? null;
-        $fabricWeight = 0;
-
-        if ($fabricId) {
-            $fabricWeight = (float) Fabric::query()->whereKey($fabricId)->value('weight_factor');
-        }
-
-        return app(CalculatorPricingService::class)->recommendBntPipe([
-            'bnt_width' => $state['rol_width'] ?? 0,
-            'bnt_height' => $state['rol_height'] ?? 0,
-            'bnt_fabric_weight' => $fabricWeight,
-        ]);
-    }
-
-    private function formatBreakdown(array $breakdown, float $costTotal, float $retailTotal): string
+    private function formatBreakdown(
+        array $breakdown,
+        float $costTotal,
+        float $retailTotal,
+        string $calculationDate,
+        float $usdRate
+    ): string
     {
         if (empty($breakdown)) {
-            return '';
+            return 'Нет выбранных позиций для расчета';
         }
 
-        $lines = [];
-        $allZero = true;
+        $lines = [
+            sprintf(
+                'Курс USD на %s: %s',
+                $calculationDate,
+                number_format($usdRate, 4, '.', '')
+            ),
+            '---',
+        ];
 
         foreach ($breakdown as $line) {
             $qty = (float) ($line['qty'] ?? 0);
-            $unitCost = (float) ($line['unit_cost'] ?? 0);
             $unitRetail = (float) ($line['unit_retail'] ?? 0);
-            $totalCost = (float) ($line['total_cost'] ?? 0);
             $totalRetail = (float) ($line['total_retail'] ?? 0);
             $label = (string) ($line['label'] ?? '');
 
-            if ($unitCost > 0 || $unitRetail > 0) {
-                $allZero = false;
-            }
-
             $lines[] = sprintf(
-                "%s | %s x %s = %s",
+                '%s | %s x %s = %s',
                 $label,
                 rtrim(rtrim(number_format($qty, 2, '.', ''), '0'), '.'),
                 number_format($unitRetail, 2, '.', ''),
@@ -273,63 +243,16 @@ class Calculator extends Component implements HasForms, HasActions
             );
         }
 
-        $lines[] = sprintf("Итого: %s", number_format($retailTotal, 2, '.', ''));
-
-        if ($allZero) {
-            $lines[] = "Внимание: цены = 0 (проверьте Компоненты)";
-        }
+        $lines[] = sprintf('Итого: %s', number_format($retailTotal, 2, '.', ''));
 
         return implode("\n", $lines);
     }
 
-    //сохраняем форму
-    public function saveAction()
+    private function resetTotals(): void
     {
-        $prefixes = [
-            \App\Forms\RolledСurtains\Form::$prefix => \App\Forms\RolledСurtains\Form::$typeName,
-            \App\Forms\VerticalBlinds\Form::$prefix => \App\Forms\VerticalBlinds\Form::$typeName,
-            \App\Forms\HorizontalBlinds\Form::$prefix => \App\Forms\HorizontalBlinds\Form::$typeName,
-        ];
-
-        $dataResult = [];
-
-        Log::info(__METHOD__, [$this->form->getState()]);
-
-        //структурируем данные из формы по типам выбранного
-
-        foreach ($this->form->getState() as $key => $value) {
-
-            foreach ($prefixes as $prefix => $typeName) {
-
-                //ищем по префиксу значение для каждого типа
-
-                if (strripos($key, $prefix) !== false) {
-
-                    //array_push($types[$typeName], $value);
-                    $dataResult[$typeName][] = $value;
-                }
-            }
-        };
-
-        if (isset($dataResult[\App\Forms\RolledСurtains\Form::$typeName])) {
-
-            $dataResult[\App\Forms\RolledСurtains\Form::$typeName][] = $this->form->getState()['type_2_rolled_curtains'];
-        }
-
-        Log::info(__METHOD__, $dataResult);
-
-
-//        return
-//            Action::make('save')type_2_rolled_curtains
-//            ->label('Сохранить')
-//            ->action(function (array $arguments): void {
-//
-//
-//            })->size(ActionSize::Small);
-    }
-
-    public function mount(): void
-    {
-        $this->form->fill();
+        $this->myPrice = 0.0;
+        $this->retailPrice = 0.0;
+        $this->usdRate = 0.0;
+        $this->priceBreakdown = '';
     }
 }

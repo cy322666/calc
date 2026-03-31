@@ -37,7 +37,7 @@ abstract class Form
                     'vip' => 'ВИП',
                 ])
                 ->default('opt')
-                ->live(),
+                ->reactive(),
 
             Grid::make(1)
                 ->schema(static::componentFields($systemCode)),
@@ -56,7 +56,7 @@ abstract class Form
                         ->pluck('name', 'code')
                 )
                 ->searchable()
-                ->live(),
+                ->reactive(),
         ];
     }
 
@@ -104,14 +104,14 @@ abstract class Form
                         ->numeric()
                         ->minValue(0)
                         ->default(0)
-                        ->live();
+                        ->reactive();
                 }
 
                 if (!$isNumericQty) {
                     $fields[] = Toggle::make("components_qty.{$component->id}")
                         ->label($component->name)
                         ->default(false)
-                        ->live();
+                        ->reactive();
 
                     if (count($variantOptions) > 1) {
                         $fields[] = Select::make("components_variant.{$component->id}")
@@ -119,7 +119,7 @@ abstract class Form
                             ->options($variantOptions)
                             ->default($defaultVariantId)
                             ->searchable()
-                            ->live();
+                            ->reactive();
                     }
                 }
 

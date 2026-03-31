@@ -29,7 +29,13 @@ class CalculatorPricingService
         }
 
         $componentQty = Arr::get($state, 'components_qty', []);
-        $priceTier = (string) Arr::get($state, 'rol_price_tier', 'opt');
+        $priceTierRaw = (string) Arr::get($state, 'rol_price_tier', '');
+        $priceTier = in_array($priceTierRaw, ['opt', 'opt1', 'opt2', 'opt3', 'opt4', 'vip'], true)
+            ? $priceTierRaw
+            : 'opt';
+        $calculationDate = (string) Arr::get($state, 'calculation_date', now()->toDateString());
+        $usdRate = app(ExchangeRateService::class)->usdToRubForDate($calculationDate);
+        $usdRate = $usdRate > 0 ? $usdRate : 1.0;
 
         $cost = 0.0;
         $retail = 0.0;
@@ -38,27 +44,24 @@ class CalculatorPricingService
         foreach ($system->components as $component) {
             $selectedVariantId = Arr::get($state, "components_variant.{$component->id}");
             $qtyPath = "components_qty.{$component->id}";
-            $qty = $this->normalizeQty(
-                Arr::get($state, $qtyPath, null),
-                Arr::has($state, $qtyPath),
-                $selectedVariantId
-            );
+            $qty = $this->normalizeQty(Arr::get($state, $qtyPath, null));
 
             if ($qty <= 0) {
                 continue;
             }
 
             $variant = $this->resolveVariant(
-                $component->id,
                 $selectedVariantId
             );
 
-            $unitCost = $variant
+            $unitCostUsd = $variant
                 ? ($this->variantPrice($variant, $priceTier) ?? 0.0)
                 : ($this->componentPrice($component, $priceTier) ?? (float) $component->cost_price);
-            $unitRetail = $variant
+            $unitRetailUsd = $variant
                 ? ($this->variantPrice($variant, $priceTier) ?? 0.0)
                 : ($this->componentPrice($component, $priceTier) ?? (float) $component->retail_price);
+            $unitCost = $unitCostUsd * $usdRate;
+            $unitRetail = $unitRetailUsd * $usdRate;
 
             $cost += $qty * $unitCost;
             $retail += $qty * $unitRetail;
@@ -70,6 +73,8 @@ class CalculatorPricingService
                 'qty' => $qty,
                 'unit_cost' => $unitCost,
                 'unit_retail' => $unitRetail,
+                'unit_cost_usd' => $unitCostUsd,
+                'unit_retail_usd' => $unitRetailUsd,
             ]);
         }
 
@@ -79,6 +84,8 @@ class CalculatorPricingService
             'breakdown' => $breakdown,
             'debug' => [
                 'system_code' => $systemCode,
+                'calculation_date' => $calculationDate,
+                'usd_rate' => $usdRate,
             ],
         ];
     }
@@ -138,7 +145,7 @@ class CalculatorPricingService
         return $value !== null ? (float) $value : null;
     }
 
-    private function resolveVariant(int $componentId, mixed $selectedVariantId): ?BlindComponentVariant
+    private function resolveVariant(mixed $selectedVariantId): ?BlindComponentVariant
     {
         if ($selectedVariantId) {
             return BlindComponentVariant::query()
@@ -146,10 +153,7 @@ class CalculatorPricingService
                 ->first();
         }
 
-        return BlindComponentVariant::query()
-            ->where('blind_component_id', $componentId)
-            ->where('is_default', true)
-            ->first();
+        return null;
     }
 
     private function addLine(array &$breakdown, array $line): void
@@ -163,12 +167,14 @@ class CalculatorPricingService
             'qty' => $qty,
             'unit_cost' => round($unitCost, 2),
             'unit_retail' => round($unitRetail, 2),
+            'unit_cost_usd' => round((float) ($line['unit_cost_usd'] ?? 0), 4),
+            'unit_retail_usd' => round((float) ($line['unit_retail_usd'] ?? 0), 4),
             'total_cost' => round($qty * $unitCost, 2),
             'total_retail' => round($qty * $unitRetail, 2),
         ];
     }
 
-    private function normalizeQty(mixed $rawQty, bool $hasQtyKey, mixed $selectedVariantId): float
+    private function normalizeQty(mixed $rawQty): float
     {
         if (is_bool($rawQty)) {
             return $rawQty ? 1.0 : 0.0;
@@ -188,10 +194,6 @@ class CalculatorPricingService
             if (in_array($value, ['0', 'false', 'off', 'no', ''], true)) {
                 return 0.0;
             }
-        }
-
-        if (!$hasQtyKey && !empty($selectedVariantId)) {
-            return 1.0;
         }
 
         return 0.0;
