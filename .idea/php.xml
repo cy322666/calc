@@ -483,9 +483,9 @@
       <path value="$PROJECT_DIR$/application/vendor/barryvdh/laravel-debugbar" />
       <path value="$PROJECT_DIR$/application/vendor/laravel/octane" />
       <path value="$PROJECT_DIR$/../emax/application/vendor/phiki/phiki" />
+      <path value="$PROJECT_DIR$/../emax/application/vendor/laravel/telescope" />
     </include_path>
   </component>
-  <component name="PhpProjectSharedConfiguration" php_language_level="8.2" />
   <component name="PhpStan">
     <PhpStan_settings>
       <PhpStanConfiguration tool_path="$PROJECT_DIR$/application/vendor/bin/phpstan" />

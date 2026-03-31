@@ -8,5 +8,12 @@
       <jdbc-url>jdbc:postgresql://localhost:5410/calc</jdbc-url>
       <working-dir>$ProjectFileDir$</working-dir>
     </data-source>
+    <data-source source="LOCAL" name="calc@prod" uuid="1f4cfcfb-e10f-45e8-a754-f898a820213d">
+      <driver-ref>postgresql</driver-ref>
+      <synchronize>true</synchronize>
+      <jdbc-driver>org.postgresql.Driver</jdbc-driver>
+      <jdbc-url>jdbc:postgresql://5.35.89.61:5410/calc</jdbc-url>
+      <working-dir>$ProjectFileDir$</working-dir>
+    </data-source>
   </component>
 </project>

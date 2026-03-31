@@ -80,6 +80,13 @@ abstract class Form
                     ? $component->variants
                     : static::guessVariantsForComponent((string) $component->name);
 
+                $componentNameNormalized = static::normalizeForCompare((string) $component->name);
+
+                // If variant name is identical to component name, it is not a real choice for UI.
+                $variants = $variants
+                    ->filter(fn ($variant) => static::normalizeForCompare((string) $variant->name) !== $componentNameNormalized)
+                    ->values();
+
                 $variantOptions = $variants
                     ->mapWithKeys(fn ($variant) => [$variant->id => $variant->name])
                     ->toArray();
@@ -215,51 +222,22 @@ abstract class Form
         return array_values(array_unique($parts));
     }
 
+    private static function normalizeForCompare(string $value): string
+    {
+        $value = mb_strtolower(trim($value));
+        $value = str_replace(['ё', '×', 'х'], ['е', 'x', 'x'], $value);
+        $value = preg_replace('/[^a-z0-9а-яx]+/u', ' ', $value) ?? '';
+        $value = preg_replace('/\s+/u', ' ', $value) ?? '';
+
+        return trim($value);
+    }
+
     private static function needsNumericQty(string $name): bool
     {
         $name = mb_strtolower($name);
 
-        // Explicit overrides from business rules.
-        if (str_contains($name, 'саморез')) {
-            return true;
-        }
-
-        $choiceOnly = [
-            'труба 32 мм с пазом',
-            'труба 45 мм с 3-мя пазами',
-            'профиль монтажный',
-            'лента уплотняющая',
-            'рейка нижняя алюминий',
-            'лента клейкая для трубы',
-            'цепь управления сплошная',
-            'профиль лицевой кассеты',
-        ];
-
-        foreach ($choiceOnly as $keyword) {
-            if (str_contains($name, $keyword)) {
-                return false;
-            }
-        }
-
-        $keywords = [
-            'труба',
-            'профиль',
-            'рейка',
-            'лента',
-            'цепь управления сплошная',
-            'трос',
-            'направляющая',
-            'шлегель',
-            'карниз',
-            'ткань',
-        ];
-
-        foreach ($keywords as $keyword) {
-            if (str_contains($name, $keyword)) {
-                return true;
-            }
-        }
-
-        return false;
+        // В количестве считаем только саморезы.
+        // Все остальные позиции — выбор (toggle + вариант справа).
+        return str_contains($name, 'саморез');
     }
 }

@@ -1,31 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
-  <component name="PublishConfigData" remoteFilesAllowedToDisappearOnAutoupload="false">
+  <component name="PublishConfigData" autoUpload="Always" serverName="zhaluzi" remoteFilesAllowedToDisappearOnAutoupload="false">
     <serverData>
-      <paths name="blackclever.hosting">
-        <serverdata>
-          <mappings>
-            <mapping local="$PROJECT_DIR$/../emax" web="/" />
-            <mapping local="$PROJECT_DIR$" web="/" />
-          </mappings>
-        </serverdata>
-      </paths>
-      <paths name="clevecrcrm.pro">
-        <serverdata>
-          <mappings>
-            <mapping local="$PROJECT_DIR$/../emax" web="/" />
-            <mapping local="$PROJECT_DIR$" web="/" />
-          </mappings>
-        </serverdata>
-      </paths>
-      <paths name="eurolos">
-        <serverdata>
-          <mappings>
-            <mapping local="$PROJECT_DIR$/../emax" web="/" />
-            <mapping local="$PROJECT_DIR$" web="/" />
-          </mappings>
-        </serverdata>
-      </paths>
       <paths name="hub.blackclever.ru">
         <serverdata>
           <mappings>
@@ -39,9 +15,13 @@
           <mappings>
             <mapping local="$PROJECT_DIR$/../emax" web="/" />
             <mapping local="$PROJECT_DIR$" web="/" />
+            <mapping deploy="/home/calc/application/app" local="$PROJECT_DIR$/application/app" web="" />
+            <mapping deploy="/home/calc/application/database" local="$PROJECT_DIR$/application/database" />
+            <mapping deploy="/home/calc/application/storage/app" local="$PROJECT_DIR$/application/storage/app" />
           </mappings>
         </serverdata>
       </paths>
     </serverData>
+    <option name="myAutoUpload" value="ALWAYS" />
   </component>
 </project>
